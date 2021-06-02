@@ -1,31 +1,9 @@
-import matplotlib.pyplot as plt
-import os
-import argparse
-import warnings
-warnings.filterwarnings('ignore', 'The iteration is not making good progress')
 import numpy as np
 from colored import fg
 from math import *
 from scipy import interpolate
 from scipy import optimize
 from functools import partial
-
-def vector_print(v1,v2,v3,v4,ncs):
-	headers = ['Structure weight [kips]','Bending moment due to earthquake [kip.ft]','Bending moment due to wind [kip.ft]','Bending resistant moment [kip.ft]']
-	head = ''
-	for i in headers:
-		head += i + ' | '
-	print '%s%s'%(fg(11),head)
-	line = '-'*len(head)
-	print '%s%s'%(line,fg(13))
-	n = np.size(v1)
-	for i in range(n):
-		ii = str(round(v1[i],ncs))
-		jj = str(round(v2[i],ncs))
-		kk = str(round(v3[i],ncs))
-		ll = str(round(v4[i],ncs))
-		string = ii + ' '*(len(headers[0]) - len(ii)) + ' | ' + jj + ' '*(len(headers[1]) - len(jj)) + ' | ' + kk + ' '*(len(headers[2]) - len(kk)) + ' | ' + ll
-		print string
 
 def max_load(D,W,E):
 	n = np.size(D)
@@ -191,7 +169,7 @@ def bending_resistance(rhot,rm_tow,t_tow,alpha):
 	Mn = phi*Pu*rm_tow*K3
 	return Mn
 
-def tower(tower_height, section_height, receiver_weight, thickness_bottom, thickness_top, diameter_bottom, diameter_top):
+def tower(tower_height, section_height, receiver_weight, thickness_bottom, thickness_top, diameter_bottom, diameter_top,verbose):
 	"""
 	This function designs the geometry of a concrete reinforced tower with fixed inner diameter, variable outside diameter and variables thickness
 	
@@ -229,10 +207,6 @@ def tower(tower_height, section_height, receiver_weight, thickness_bottom, thick
 	di_b_x = np.linspace(di_t,di_b,n+1)[1:n+1]                      # tower section inner diameter at bottom, in feets
 	rm_tow = 0.25*(0.5*(do_t_x + do_b_x) + 0.5*(di_t_x + di_b_x))   # tower mean radius in feets
 	t_tow = 0.5*(0.5*(do_t_x + do_b_x) - 0.5*(di_t_x + di_b_x))     # tower mean thickness in feets
-
-#	print 'hx, do_t_x, do_b_x, di_t_x, di_b_x, rm_tow, t_tow'
-#	for i in range(n):
-#		print '%4.2f, %4.2f, %4.2f, %4.2f, %4.2f, %4.2f, %4.2f'%(hx[i], do_t_x[i],do_b_x[i],di_t_x[i],di_b_x[i],rm_tow[i],t_tow[i])
 
 	# ************************** COMPUTING THE WEIGHT OF STRUCTURE SECTIONS **********************************************************
 	v_out_x = 0.25*pi*h_sec*1./3.*(do_t_x**2 + do_t_x*do_b_x + do_b_x**2)
@@ -376,6 +350,7 @@ def tower(tower_height, section_height, receiver_weight, thickness_bottom, thick
 		sf_f_min = np.min(sf)
 		res_min = np.max(res)
 		rhot_f += 0.1/100.                                            # Sweeping reinforcement ratio
+
 	# ************************** DESIGN FOR CIRCUMFERENTIAL BENDING ******************************************************************************
 	phi = 0.7                                                         # ACI 307-08 strength reduction factor, section 5
 	bw = 12.                                                          # 1 feet of height section
@@ -409,135 +384,22 @@ def tower(tower_height, section_height, receiver_weight, thickness_bottom, thick
 	C_concrete = V_concrete*420.9930175246                             # Cost of concrete
 	C_tower_fix = 19588901*exp(0.0113*tower_height)/exp(0.0113*268.0)  # Cost of embedded metals, foundation and sitework
 	C_tower = (C_tower_fix + C_concrete + C_steel)*C[1]/C[0]           # Cost of tower
-	#vector_print(D,Mx_seismic,Mx_wind,Mn,2)
+
 	# ************************** MINIMUM SAFETY FACTOR *******************************************************************************************
 	sf_min = min(sf_c_min,sf_f_min)
 	if sf_min < min_sf and res_min > Pu_tol:
 		C_tower = 1e20
 	# ************************** PRINTING OUTPUTS ************************************************************************************************
-#	print ''
-#	print '%sThickness bottom (m):%s                        %s'%(fg(11),fg(13),thickness_bottom)
-#	print '%sThickness top (m):%s                           %s'%(fg(11),fg(13),thickness_top)
-#	print '%sMinimum vertical reinforcement ratio:%s        %s'%(fg(11),fg(13),rhot_f)
-#	print '%sMinimum circumferential reinforcement ratio:%s %s'%(fg(11),fg(13),rhot_c)
-#	print '%sPu iteration residual:%s                       %s'%(fg(11),fg(13),res_min)
-#	print '%sMinimum vertical safety factor:%s              %4.2f'%(fg(11),fg(13),sf_f_min)
-#	print '%sMinimum circumferential safety factor:%s       %4.2f'%(fg(11),fg(13),sf_c_min)
-#	print '%sConcrete volume [CY]:%s                        %4.2f'%(fg(11),fg(13),V_concrete)
-#	print '%sSteel mass [tons]:%s                           %4.2f'%(fg(11),fg(13),M_steel)
-#	print '%sCost of tower [$]:%s                           %4.2f\n'%(fg(11),fg(13),C_tower)
-#	print '%s,%s,%s,%s,%s,%s,%s,%s,%s'%(thickness_bottom,thickness_top,rhot_f,rhot_c,res_min,sf_min,V_concrete,M_steel,C_tower)
-	return C_tower
+	if verbose:
+		print '%sThickness bottom (m):%s                        %s'%(fg(11),fg(13),thickness_bottom)
+		print '%sThickness top (m):%s                           %s'%(fg(11),fg(13),thickness_top)
+		print '%sMinimum vertical reinforcement ratio:%s        %s'%(fg(11),fg(13),rhot_f)
+		print '%sMinimum circumferential reinforcement ratio:%s %s'%(fg(11),fg(13),rhot_c)
+		print '%sPu iteration residual:%s                       %s'%(fg(11),fg(13),res_min)
+		print '%sMinimum vertical safety factor:%s              %4.2f'%(fg(11),fg(13),sf_f_min)
+		print '%sMinimum circumferential safety factor:%s       %4.2f'%(fg(11),fg(13),sf_c_min)
+		print '%sConcrete volume [CY]:%s                        %4.2f'%(fg(11),fg(13),V_concrete)
+		print '%sSteel mass [tons]:%s                           %4.2f'%(fg(11),fg(13),M_steel)
+		print '%sCost of tower [$]:%s                           %4.2f\n'%(fg(11),fg(13),C_tower)
 
-def tower_opt(Q_rec_out,Tower_height,D_receiver,H_receiver,x):
-	'''
-	x[0]: Thickness at the top
-	x[1]: Offset from thickness at the top. Thickness_bottom = Thickness at the top + x[1]
-
-	x[0] should be minimum 25.4 cm to accommodate the ring and meridian reinforcement (Burghartz, 2016)
-
-	'''
-	Receiver_weight = scaling_w_receiver(D_receiver, H_receiver, Q_rec_out)
-
-	Section_height = 5.         # [m]
-	Thickness_top = x[0]
-	Thickness_bottom = x[0] + x[1]
-	Diameter_top = 1.2*D_receiver + 2*Thickness_top
-	Diameter_bottom = 1.2*D_receiver + 2*Thickness_bottom
-
-	if x[0] < 0.254 or x[1] < 0 : # A minimum wall thickness of 25 cm is required to accommodate the ring and meridian reinforcement
-		y = 1e20
-	else:
-		y = tower(Tower_height,Section_height,Receiver_weight,Thickness_bottom,Thickness_top,Diameter_bottom,Diameter_top)
-	return y
-
-if __name__ == '__main__':
-	parser = argparse.ArgumentParser(description='Tower design and cost ACI 307-08 and ASCE 7-05')
-	parser.add_argument('--abengoa', type=bool, default=True, help='Run the calculations for the abengoa report')
-	parser.add_argument('--optimisation', type=bool, default=False, help='Optimise the cost of the tower')
-	parser.add_argument('--run_all', type=bool, default=False, help='Optimise the cost of the tower')
-	parser.add_argument('index', type=int, default=0, help='The index of the case')
-	args = parser.parse_args()
-
-	optimisation = args.optimisation
-	abengoa = args.abengoa
-	run_all = args.run_all
-	i = args.index
-
-	Q = [151.0723496531,153.1658623537,152.8151618348,155.0485142915,152.2393636592,
-		 197.6590045083,201.475497697,203.6991111324,203.3278231673,204.2842773803,
-		 300.4223477035,309.1665884238,313.1824789973,312.5137526733,315.1012653699,
-		 624.0082952208,628.4483169736,630.1481971056]
-	T = [100,125,150,175,200,100,125,150,175,200,100,125,150,175,200,150,175,200]
-	D = [10,9,9,8,9,12,11,10,10,9,15,13,12,12,11,16,16,15]
-	H = [13,13,13,13,13,15,14,14,14,15,19,18,17,17,17,26,24,25]
-
-	if optimisation:
-		Q_rec_out  = Q[i]
-		Tower_height  = float(T[i])
-		D_receiver  = float(D[i])
-		H_receiver  = float(H[i])
-		dbl = partial(tower_opt,Q_rec_out,Tower_height,D_receiver,H_receiver)
-		x0 = np.zeros(2)
-		x0[0] = 0.5
-		x0[1] = 0.25
-		b1 = (0.2,0.5)
-		b2 = (0.0,0.5)
-		bnds = (b1,b2)
-		res = optimize.minimize(dbl, x0, method='COBYLA', bounds=bnds, tol=1e-6)
-		print '%s,%s,%s'%(res.x[0],res.x[1],res.fun)
-	elif run_all:
-		for i in range(18):
-			Q_rec_out  = Q[i]
-			Tower_height  = float(T[i])
-			D_receiver  = float(D[i])
-			H_receiver  = float(H[i])
-			dbl = partial(tower_opt,Q_rec_out,Tower_height,D_receiver,H_receiver)
-			x0 = np.zeros(2)
-			x0[0] = 0.5
-			x0[1] = 0.25
-			b1 = (0.2,0.5)
-			b2 = (0.0,0.5)
-			bnds = (b1,b2)
-			res = optimize.minimize(dbl, x0, method='COBYLA', bounds=bnds, tol=1e-6)
-			print '%s,%s,%s'%(res.x[0],res.x[1],res.fun)
-	else:
-		n = 19
-		t_t = np.linspace(0.254, 0.375, n)
-		o_b = np.linspace(0.254/2, 0.375, n)
-		x,y = np.meshgrid(t_t,o_b)
-		data = np.zeros((n,n))
-		txt_file = open('case_%s.csv'%(i),'w')
-		Q_rec_out  = Q[i]
-		Tower_height  = float(T[i])
-		D_receiver  = float(D[i])
-		H_receiver  = float(H[i])
-		Section_height = 5.
-		Receiver_weight = scaling_w_receiver(D_receiver, H_receiver, Q_rec_out)
-		min_c = 1e20
-		for j in range(n):
-			for k in range(n):
-				Thickness_top = t_t[j]
-				Thickness_bottom = t_t[j] + o_b[k]
-				Diameter_top = 1.2*D_receiver + 2*Thickness_top
-				Diameter_bottom = 1.2*D_receiver + 2*Thickness_bottom
-				data[j,k] = tower(Tower_height,Section_height,Receiver_weight,Thickness_bottom,Thickness_top,Diameter_bottom,Diameter_top)
-				print '%s,%s,%s,%s,%s'%(Thickness_top, Thickness_bottom, Diameter_top, Diameter_bottom, data[j,k])
-				if k == (n-1):
-					txt_file.write('%s\n'%(data[j,k]))
-				else:
-					txt_file.write('%s,'%(data[j,k]))
-				if data[j,k] < min_c:
-					min_c = data[j,k]
-					min_t_t = t_t[j]
-					min_t_b = o_b[k]
-		print 'min_c: %s, min_t_t: %s, min_t_b: %s'%(min_c, min_t_t, min_t_b)
-		txt_file.close()
-		plt.figure(1)
-#		data = np.genfromtxt('case_%s.csv'%(i), delimiter=',')
-		plt.contourf(x,y,data,n)
-		cbar = plt.colorbar()
-		cbar.set_label('Cost (USD)')
-#		plt.figure(2)
-#		plt.plot(o_b,data[0,:])
-		plt.show()
+	return C_tower,sf_min,res_min
