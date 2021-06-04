@@ -191,7 +191,7 @@ def tower(tower_height, section_height, receiver_weight, thickness_bottom, thick
 	do_b = diameter_bottom                                                   # tower outside diameter at bottom in meters
 	do_t = diameter_top                                                      # tower outside diameter at top in meters
 
-	# ************************** UNIT CONVERSION FROM ENGLISH TO SI SYSTEMS *********************************************************
+	# ************************** UNIT CONVERSION FROM SI TO ENGLISH SYSTEM **********************************************************
 	t_b = thickness_bottom*1000./25.4/12                                     # tower thickness at the bottom, in feets
 	t_t = thickness_top*1000./25.4/12                                        # tower thickness at the top, in feets
 	do_b = do_b*1000./25.4/12                                                # tower outer diameter at the bottom in feets
@@ -217,15 +217,14 @@ def tower(tower_height, section_height, receiver_weight, thickness_bottom, thick
 	t_tow = 0.5*(0.5*(do_t_x + do_b_x) - 0.5*(di_t_x + di_b_x))              # tower mean thickness in feets
 
 	# ************************** COMPUTING THE WEIGHT OF STRUCTURE SECTIONS *********************************************************
-	v_out_x = 0.25*pi*h_sec*1./3.*(do_t_x**2 + do_t_x*do_b_x + do_b_x**2)
-	v_in_x = 0.25*pi*h_sec*1./3.*(di_t_x**2 + di_t_x*di_b_x + di_b_x**2)
-	v_sec_x = v_out_x - v_in_x
-	w_sec_x = v_sec_x*0.086*12**3/1000.
-	# ************************** ADDITION OF RECEIVER WEIGHT AT THE TOP *************************************************************
-	w_sec_x[0] += w_rec
+	v_out_x = 0.25*pi*h_sec*1./3.*(do_t_x**2 + do_t_x*do_b_x + do_b_x**2)    # volume of the outer truncated conical section (or cylinder if the outer diameter is constant)
+	v_in_x = 0.25*pi*h_sec*1./3.*(di_t_x**2 + di_t_x*di_b_x + di_b_x**2)     # volume of the inner truncated conical section (or cylinder if the inner diameter is constant)
+	v_sec_x = v_out_x - v_in_x                                               # volume of tower section
+	w_sec_x = v_sec_x*0.086*12**3/1000.                                      # weight of tower section
+	w_sec_x[0] += w_rec                                                      # adding receiver to the top
 
 	# ************************** COMPUTING WEIGHT OF THE STRUCTURE ******************************************************************
-	w_structure = np.sum(w_sec_x, axis=0)
+	w_structure = np.sum(w_sec_x, axis=0)                                    # cummulative weight of tower
 
 	# ************************** INITIALISATION OF SEISMIC ANALYSIS *****************************************************************
 	E = 4200                                                                 # Reinforced concrete's Young modulus
@@ -294,13 +293,14 @@ def tower(tower_height, section_height, receiver_weight, thickness_bottom, thick
 
 	# ************************** DETERMINING MEAN ALONG-WIND LOADS ******************************************************************
 	Vx = 1.47*Vr*(hx/33)**0.154*0.65                                         # Mean hourly wind speed at any level, Eq. 4-1 ACI 307-08
+	Kd = 0.95                                                                # Geometric parameter for circular shapes
 	Cdr = np.zeros(n)
 	for i in range(n):
 		if hx[i] < (h - 1.5*do_t):
 			Cdr[i] = 0.65                                                    # Drag coefficient for along-wind load, Eq. 4-3 ACI 307-08
 		else:
 			Cdr[i] = 1.0                                                     # Drag coefficient for along-wind load, Eq. 4-4 ACI 307-08
-	px_bar = 0.0013*Vx**2                                                    # Pressure due to mean hourly design wind speed at any level (x), Eq. 4-4 ACI 307-98 (More conservative)
+	px_bar = 0.00119*Kd*Vx**2                                                # Pressure due to mean hourly design wind speed at any level (x), Eq. 4-4 ACI 307-08
 	wx_bar = Cdr*0.5*(do_t_x + do_b_x)*px_bar                                # Mean along-wind load per unit length at any level, Eq. 4-2 ACI 307-08
 	Mx_bar = wx_bar*h_sec/1000*hx                                            # Mean along-wind bending moment at any level
 	Mwb_bar = np.sum(Mx_bar[:], axis=0)                                      # Mean along-wind bending moment at the base
@@ -388,7 +388,7 @@ def tower(tower_height, section_height, receiver_weight, thickness_bottom, thick
 	C_steel = M_steel*2364.3025971411                                        # Cost of reinforcing steel (using 2010 basis)
 	C_concrete = V_concrete*420.9930175246                                   # Cost of concrete
 	C_tower_fix = 19588901*exp(0.0113*tower_height)/exp(0.0113*268.0)        # Cost of embedded metals, foundation and sitework
-	C_tower = (C_tower_fix + C_concrete + C_steel)*C[1]/C[0]                 # Cost of tower
+	C_tower = (C_tower_fix + C_concrete + C_steel)*C[2]/C[0]                 # Cost of tower, scaled to 2020 values
 
 	# ************************** MINIMUM SAFETY FACTOR *******************************************************************************************
 	sf_min = min(sf_c_min,sf_f_min)
