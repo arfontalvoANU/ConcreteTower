@@ -5,21 +5,36 @@ from scipy import interpolate
 from scipy import optimize
 from functools import partial
 
-def max_load(D,W,E):
+def max_load(D,W,E,load_type):
 	# ************************** FUNCTION TO DETERMINE THE MAXIMUM FACTORED LOAD FOR DESIGN PURPOSES ACI 307-08 *********************
 	n = np.size(D)
 	Uv = np.zeros((n,7))
 	Pu = np.zeros(n)
 
-	for i in range(n):
-		Uv[i,0] = 1.4*D[i]                                                   # Eq. 5-1, ACI 307-08
-		Uv[i,1] = 0.9*D[i] + 1.6*W[i]                                        # Eq. 5-2, ACI 307-08
-		Uv[i,2] = 1.2*D[i] + 1.6*W[i]                                        # Eq. 5-2a, ACI 307-08
-		Uv[i,3] = 0.9*D[i] + 1.4*W[i]                                        # Eq. 5-3, ACI 307-08
-		Uv[i,4] = 1.2*D[i] + 1.4*W[i]                                        # Eq. 5-3a, ACI 307-08
-		Uv[i,5] = 0.9*D[i] + E[i]                                            # Eq. 5-4, ACI 307-08
-		Uv[i,6] = 1.2*D[i] + E[i]                                            # Eq. 5-4a, ACI 307-08
-		Pu[i] = np.max(Uv[i,:])
+	if load_type == 1:
+		for i in range(n):
+			Uv[i,0] = 1.4*D[i]                                                   # Eq. 5-1, ACI 307-08
+			Uv[i,1] = 0.9*D[i] + 1.6*W[i]                                        # Eq. 5-2, ACI 307-08
+			Uv[i,2] = 1.2*D[i] + 1.6*W[i]                                        # Eq. 5-2a, ACI 307-08
+			Uv[i,3] = 0.9*D[i] + 1.4*W[i]                                        # Eq. 5-3, ACI 307-08
+			Uv[i,4] = 1.2*D[i] + 1.4*W[i]                                        # Eq. 5-3a, ACI 307-08
+			Pu[i] = np.max(Uv[i,:])
+	elif load_type == 2:
+		for i in range(n):
+			Uv[i,0] = 1.4*D[i]                                                   # Eq. 5-1, ACI 307-08
+			Uv[i,5] = 0.9*D[i] + E[i]                                            # Eq. 5-4, ACI 307-08
+			Uv[i,6] = 1.2*D[i] + E[i]                                            # Eq. 5-4a, ACI 307-08
+			Pu[i] = np.max(Uv[i,:])
+	else:
+		for i in range(n):
+			Uv[i,0] = 1.4*D[i]                                                   # Eq. 5-1, ACI 307-08
+			Uv[i,1] = 0.9*D[i] + 1.6*W[i]                                        # Eq. 5-2, ACI 307-08
+			Uv[i,2] = 1.2*D[i] + 1.6*W[i]                                        # Eq. 5-2a, ACI 307-08
+			Uv[i,3] = 0.9*D[i] + 1.4*W[i]                                        # Eq. 5-3, ACI 307-08
+			Uv[i,4] = 1.2*D[i] + 1.4*W[i]                                        # Eq. 5-3a, ACI 307-08
+			Uv[i,5] = 0.9*D[i] + E[i]                                            # Eq. 5-4, ACI 307-08
+			Uv[i,6] = 1.2*D[i] + E[i]                                            # Eq. 5-4a, ACI 307-08
+			Pu[i] = np.max(Uv[i,:])
 	return Pu
 
 def salt(T):
@@ -36,28 +51,41 @@ def sodium(T):
 	enthalpy = -365.77 + 1.6582 * Temp - 4.2395e-4 * Temp**2 + 1.4847e-7 * Temp**3 + 2992.6 /Temp - 104.90817873321107
 	return density,enthalpy
 
-def scaling_w_receiver(D_receiver, H_receiver, Q_rec_out):
-	# ************************** FUNCTION TO DETERMINE RECEIVER WEIGHT **************************************************************
-	rho_salt_hot,h_salt_hot = salt(566.)                                     # Salt density and enthalpy at outlet
-	rho_salt_cold,h_salt_cold = salt(290.)                                   # Salt density and enthalpy at inlet
-	rho_na_hot,h_na_hot = sodium(740.)                                       # Sodium density and enthalpy at outlet
-	rho_na_cold,h_na_cold = sodium(520.)                                     # Sodium density and enthalpy at inlet
-	rho_na = 0.5*(rho_na_cold + rho_na_hot)                                  # Average sodium density
+def scaling_w_receiver(D_receiver, H_receiver, Q_rec_out, T_in=520.0, T_out=740.0, IsSodium=True):
+	"""
+	This function calculates the weight of receiver based on its capacity, geometry, heat transfer fluid (HTF) and operation temperatures
+	
+	D_receiver:                      Diameter of the receiver, in meters
+	H_receiver:                      Height of the receiver, in meters
+	Q_rec_out:                       Tower thickness at bottom
+	T_in:                            HTF temperature at receiver inlet
+	T_out:                           HTF temperature at receiver outlet
+	IsSodium:                        HTF choice: True for liquid sodium, False for Nitrate Salt
+	"""
+	rho_salt_hot,h_salt_hot = salt(566.)                                     # Nitrate salt density and enthalpy at outlet
+	rho_salt_cold,h_salt_cold = salt(290.)                                   # Nitrate salt density and enthalpy at inlet
+	if IsSodium:
+		rho_htf_hot,h_htf_hot = sodium(T_out)                                # Liquid sodium density and enthalpy at outlet
+		rho_htf_cold,h_htf_cold = sodium(T_in)                               # Liquid sodium density and enthalpy at inlet
+	else:
+		rho_htf_hot,h_htf_hot = salt(T_out)                                  # Nitrate salt density and enthalpy at outlet
+		rho_htf_cold,h_htf_cold = salt(T_in)                                 # Nitrate salt density and enthalpy at inlet
+	rho_htf = 0.5*(rho_htf_cold + rho_htf_hot)                               # Average sodium density
 	rho_salt = 0.5*(rho_salt_cold + rho_salt_hot)                            # Average salt density
-	delta_h_salt = h_salt_hot - h_salt_cold                                  # Sodium enthalpy gain
-	delta_h_na = h_na_hot - h_na_cold                                        # Salt enthalpy gain
+	delta_h_salt = h_salt_hot - h_salt_cold                                  # Fluid enthalpy gain
+	delta_h_htf = h_htf_hot - h_htf_cold                                     # Nitrate salt enthalpy gain
 	Q_rec_out_ref = 700.                                                     # CMI Receiver thermal output at design [MWth]
-	scaffholding_ref = 1000.                                                 # CMI Steel scaffholding weight [tons]
-	panels_ref = 100.                                                        # CMI panels weight [tons]
-	installation_ref = 650.                                                  # CMI internal installation weight [tons]
-	fluid_ref = 500.                                                         # CMI salt weight [tons]
+	scaffholding_ref = 1000.                                                 # CMI Steel scaffholding weight [metric tons]
+	panels_ref = 100.                                                        # CMI panels weight [metric tons]
+	installation_ref = 650.                                                  # CMI internal installation weight [metric tons]
+	fluid_ref = 500.                                                         # CMI nitrate salt weight [metric tons]
 	Vss_ref = 0.25*pi*17.**2*18.                                             # CMI receiver volume [m3]
 	Apa_ref = pi*17.*18.                                                     # CMI panel area [m2]
-	scaffholding = scaffholding_ref/Vss_ref*0.25*pi*D_receiver**2*H_receiver # Steel scaffholding weight [tons]
-	panels = panels_ref/Apa_ref*pi*D_receiver*H_receiver                     # Panels weight [tons]
-	installation = installation_ref/Vss_ref*0.25*pi*D_receiver**2*H_receiver # Internal installation weight [tons]
-	fluid = fluid_ref*Q_rec_out/Q_rec_out_ref*delta_h_salt/delta_h_na        # Sodium weight method 1 [tons]
-	W_receiver = scaffholding + panels + installation + fluid                # Receiver weight [tons]
+	scaffholding = scaffholding_ref/Vss_ref*0.25*pi*D_receiver**2*H_receiver # Steel scaffholding weight [metric tons]
+	panels = panels_ref/Apa_ref*pi*D_receiver*H_receiver                     # Panels weight [metric tons]
+	installation = installation_ref/Vss_ref*0.25*pi*D_receiver**2*H_receiver # Internal installation weight [metric tons]
+	fluid = fluid_ref*Q_rec_out/Q_rec_out_ref*delta_h_salt/delta_h_htf       # Fluid weight method 1 [metric tons]
+	W_receiver = scaffholding + panels + installation + fluid                # Receiver weight [metric tons]
 	return W_receiver
 
 def neutral_axis_angle(load,rhot,rm_tow,t_tow,alpha):
@@ -177,14 +205,16 @@ def bending_resistance(rhot,rm_tow,t_tow,alpha):
 	Mn = phi*Pu*rm_tow*K3
 	return Mn
 
-def tower(tower_height, section_height, receiver_weight, thickness_bottom, thickness_top, diameter_bottom, diameter_top,verbose):
+def tower(tower_height, section_height, receiver_weight, thickness_bottom, thickness_top, diameter_bottom, diameter_top,verbose=False,load_type=3,burghartz = False,min_sf = 2.00):
 	"""
 	This function designs the geometry of a concrete reinforced tower with fixed inner diameter, variable outside diameter and variables thickness
 	
 	tower_height:                    Tower height in meters
 	section_height:                  Section height in meters
 	thickness_bottom:                Tower thickness at bottom
-	thickness_top                    Tower thickness at top
+	thickness_top:                   Tower thickness at top
+	verbose:                         True if printing intermediate variables during simulation
+	load_type:                       Type of load considered (1 for wind, 2 for seismic, 3 for wind and seismic (default)
 	"""
 
 	# ************************** COMPUTING OUTER DIAMETERS AT THE TOP AND BOTTOM OF THE TOWER ***************************************
@@ -204,13 +234,17 @@ def tower(tower_height, section_height, receiver_weight, thickness_bottom, thick
 
 	# ************************** UNIT CONVERSION FROM ENGLISH TO SI SYSTEMS *********************************************************
 	n = int(h/h_sec)                                                         # Number of sections
-	if h - n*h_sec > 0:
+	if h%h_sec > 1e-6:
 		n += 1
 	h_sec = float(h)/n
 	hbx = np.linspace(h,0,n+1)[1:n+1]                                        # height to the bottom of each section, in feets
 	hx = hbx + h_sec*0.5                                                     # height to the middle of each section, in feets
 	do_t_x = np.linspace(do_t,do_b,n+1)[0:n]                                 # tower section outer diameter at top, in feets
 	do_b_x = np.linspace(do_t,do_b,n+1)[1:n+1]                               # tower section outer diameter at bottom, in feets
+	if burghartz:
+		do_x = np.concatenate((np.linspace(22.5*1000./25.4/12,22.7*1000./25.4/12,35)[0:34],np.linspace(22.7*1000./25.4/12,23.2*1000./25.4/12,9)))
+		do_t_x = do_x[0:n]
+		do_b_x = do_x[1:n+1]
 	di_t_x = np.linspace(di_t,di_b,n+1)[0:n]                                 # tower section inner diameter at top, in feets
 	di_b_x = np.linspace(di_t,di_b,n+1)[1:n+1]                               # tower section inner diameter at bottom, in feets
 	rm_tow = 0.25*(0.5*(do_t_x + do_b_x) + 0.5*(di_t_x + di_b_x))            # tower mean radius in feets
@@ -244,24 +278,21 @@ def tower(tower_height, section_height, receiver_weight, thickness_bottom, thick
 		Fv = f(S1)                                                           # Long-period site coefficient (at 1.0 s-period)
 
 	# ************************** DETERMINING SHEAR FORCE ****************************************************************************
-	SMS = Ss*Fa                                                              # The MCER spectral response acceleration parameters for short periods, Eq. 11.4.1 ASCE 7-16
-	SM1 = S1*Fv                                                              # The MCER spectral response acceleration parameters at a period of 1 s, Eq. 11.4.2 ASCE 7-16
+	SMS = Ss*Fa                                                              # The MCER spectral response acceleration parameters for short periods, Eq. 11.4.1 ASCE 7-16 (Dagget, USA)
+	SM1 = S1*Fv                                                              # The MCER spectral response acceleration parameters at a period of 1 s, Eq. 11.4.2 ASCE 7-16 (Dagget, USA)
 	SDS = 2./3.*Ss                                                           # Design, 5% damped, spectral response acceleration parameter at short periods, Eq. 11.4.3 ASCE 7-16
 	SD1 = 2./3.*SM1                                                          # Design, 5% damped, spectral response acceleration parameter at a period of 1 s, Eq. 11.4.4 ASCE 7-16
-	Ct = 0.02                                                                # Building period coefficient, Table 12.8.2 (All other structural systems) ASCE 7-16
-	x = 0.75                                                                 # Building period exponent, Table 12.8.2 (All other structural systems) ASCE 7-16
-	Ta = Ct*h**x                                                             # Aproximate fundamental period, Eq. 12.8.7 ASCE 7-16
-	T = 1.8*h**2/(3*do_b - do_t)/np.sqrt(E*1000.)                            # Fundamental period of vibration ACI 307-79 (Conservative value)
-	I= 1.15                                                                  # Importance factor ACI 307-08
-	R = 3.                                                                   # Response modification factor, Section 4.3.2 ACI 307-08
+	T = 5*h**2/do_b*sqrt(0.086*12/32.2/4.2/1000000)*(t_t/t_b)**0.3           # Fundamental period ACI 307-08
+	I= 1                                                                     # Importance factor ASCE 7-16, Section 1.5.1
+	R = 1.5                                                                  # Response modification factor, Section 4.3.2 ACI 307-08
 	Cu = 1.4                                                                 # Coefficient for Upper Limit on Calculated Period, Table 12.8.1 ASCE 7-16
-	Tmax = Cu*Ta                                                             # Upper Limit on Calculated Period, ASCE 7-16
-	Cs = min(SDS/(R/I),SDS/(Ta*R/I))                                         # The seismic response coefficient, Eq. 12.8.2-12.8.3 ASCE 7-16
+	T = min(T, Cu*T)                                                         # Upper Limit on Calculated Period, ASCE 7-16
+	Cs = min(SDS/(R/I),SD1/(T*R/I))                                          # The seismic response coefficient, Eq. 12.8.2-12.8.3 ASCE 7-16
 	V = Cs*w_structure                                                       # Seismic base shear, Eq. 12.8.1 ASCE 7-16
 	x = [0.5,2.5]
 	y = [1.0,2.0]
 	f = interpolate.interp1d(x, y, fill_value=(y[0],y[-1]), bounds_error=False)
-	k = f(Ta)                                                                # Exponent related to the structure period, Section 12.8.3 ASCE 7-16
+	k = f(T)                                                                 # Exponent related to the structure period, Section 12.8.3 ASCE 7-16
 	J = max(min(0.6/(T**(1./3.)),1),0.45)                                    # Numerical coefficient for based moment, ACI 307-79
 
 	# ************************** DETERMINING HORIZONTAL FORCE AND BENDIGN MOMENT DUE TO MCE *****************************************
@@ -278,9 +309,11 @@ def tower(tower_height, section_height, receiver_weight, thickness_bottom, thick
 			Mx_seismic[i] = Jx[i]*suma                                       # Moment at any level (x), ACI 307-79
 
 	# ************************** INITIALISATION OF WIND ANALYSIS ********************************************************************
-	V = 85                                                                   # Basic wind speed, in miles per hour (mph), Figure 26.5-1A ASCE 7-16
+	if burghartz:
+		V = 58.1603                                                          # Basic wind speed, in miles per hour (mph) for Tabernas (Spain) Burghartz example
+	else:
+		V = 97                                                               # Basic wind speed, in miles per hour (mph), Figure 26.5-1A ASCE 7-16 (Dagget, USA)
 	Vr = I**0.5*V                                                            # Reference design wind speed, in miles per hour (mph)
-	T1 = 5*h**2/do_b*sqrt(0.086*12/32.2/4.2/1000000*(t_t/t_b)**0.3)          # First period (Natural frequency)
 	V33 = 1.47*Vr*(33/33)**0.154*0.65                                        # Mean hourly wind speed at height of 33 ft, in ft/s
 	z_cr = 5./6.*h                                                           # Height corresponding to Vcr
 	V_z_cr = 1.47*Vr*(z_cr/33)**0.154*0.65                                   # Critical wind speed for across-wind loads
@@ -288,11 +321,12 @@ def tower(tower_height, section_height, receiver_weight, thickness_bottom, thick
 	V_z_cr_13 = 1.3*V_z_cr                                                   # Critical wind speed for across-wind loads over a ranfe of 1.3*V_z_cr
 	F1A = 0.333 + 0.206*log(h/do_t)                                          # Strouhal number parameter
 	St = 0.25*F1A                                                            # Strouhal number
-	f = 1./T1                                                                # Frequency
+	f = 1./T                                                                 # Frequency
 	V_cr = f*do_t/St                                                         # Mean hourly design wind speed at (5/6)h
 
 	# ************************** DETERMINING MEAN ALONG-WIND LOADS ******************************************************************
 	Vx = 1.47*Vr*(hx/33)**0.154*0.65                                         # Mean hourly wind speed at any level, Eq. 4-1 ACI 307-08
+	V_rec = 1.47*Vr*((h+20*3.28)/33)**0.154*0.65
 	Kd = 0.95                                                                # Geometric parameter for circular shapes
 	Cdr = np.zeros(n)
 	for i in range(n):
@@ -301,19 +335,25 @@ def tower(tower_height, section_height, receiver_weight, thickness_bottom, thick
 		else:
 			Cdr[i] = 1.0                                                     # Drag coefficient for along-wind load, Eq. 4-4 ACI 307-08
 	px_bar = 0.00119*Kd*Vx**2                                                # Pressure due to mean hourly design wind speed at any level (x), Eq. 4-4 ACI 307-08
+	px_bar_rec = 0.00119*Kd*V_rec**2
 	wx_bar = Cdr*0.5*(do_t_x + do_b_x)*px_bar                                # Mean along-wind load per unit length at any level, Eq. 4-2 ACI 307-08
+	wx_bar_rec = 17*3.28*px_bar_rec
 	Mx_bar = wx_bar*h_sec/1000*hx                                            # Mean along-wind bending moment at any level
+	Mx_bar[0] += wx_bar_rec*40*3.28/1000*(h + 20*3.28)
 	Mwb_bar = np.sum(Mx_bar[:], axis=0)                                      # Mean along-wind bending moment at the base
 
 	# ************************** DETERMINING FLUCTUATING ALONG-WIND LOADS ***********************************************************
-	Gwp = 0.3+11*(T1*V33)**0.47/(h+16)**0.86                                 # Gust factor for along-wind fluctuating load, Eq. 4-7 ACI 307-08
+	Gwp = 0.3+11*(T*V33)**0.47/(h+16)**0.86                                  # Gust factor for along-wind fluctuating load, Eq. 4-7 ACI 307-08
 	wx_prime = 3*hx*Gwp*Mwb_bar*1000/(h**3)                                  # Fluctuating along-wind load per unit length at any level, Eq. 4-6 ACI 307-08
+	wx_prime_rec = 3*(h + 20*3.28)*Gwp*Mwb_bar*1000/(h**3)
 	Mx_prime = wx_prime*h_sec/1000*hx                                        # Fluctuating along-wind bending moment at any level
+	Mx_prime[0] += wx_prime_rec*40*3.28/1000*(h + 20*3.28)
 
 	# ************************** DETERMINING ALONG-WIND LOADS ***********************************************************************
 	Mx_wind = Mx_bar + Mx_prime                                              # Mean and fluctuating along-wind bending moment at any level
 	Mx_wind = np.cumsum(Mx_wind)                                             # Cummulative mean and fluctuating along-wind bending moment at any level
 	Fx_wind = (wx_prime + wx_bar)*h_sec/1000                                 # Mean and fluctuating along-wind shear force at any level
+	Fx_wind[0] += (wx_prime_rec + wx_bar_rec)*40*3.28/1000
 
 	# ************************** CIRCUMFERENTIAL BENDING ****************************************************************************
 	Gr_x = np.zeros(n)
@@ -331,17 +371,28 @@ def tower(tower_height, section_height, receiver_weight, thickness_bottom, thick
 	E = np.cumsum(Fx)                                                        # Cummulative earthquake shear load, in Kips
 
 	# ************************** CALCULATING DESIGN LOADS ****************************************************************************************
-	Pu = max_load(D, W, E)                                                   # Factored vertical load, in Kips
+	Pu = max_load(D, W, E, load_type)                                        # Factored vertical load, in Kips
 	n = np.size(Pu)
+	if load_type == 1:
+		type_load = 'Wind only'
+		Mu = Mx_wind
+	elif load_type == 2:
+		Mu = Mx_seismic
+		type_load = 'Seismic only'
+	else:
+		Mu = Mx_seismic + Mx_wind
+		type_load = 'Wind and seismic'
 
 	# ************************** OBTAINING BENDIGN RESISTANCE ************************************************************************************
-	min_sf = 1.99                                                            # Minimum safety factor
 	Pu_tol = 1e-5                                                            # Minimum tolerance to obtain the circumferential reinforcement
 	res_min = 1e6                                                            # Place holder for residual
 	sf_f_min = 0                                                             # Place holder for calculated safety factor
-	rhot_f = 0.25/100.                                                       # ACI 307-08, Section 4.4.1, the circumferential reinforcement in each face shall be not less than 0.25% of the concrete area.
+	if burghartz:
+		rhot_f = 0.68/100.                                                   # Burghartz (2016) suggests a minimum reinforcement of 0.68%
+	else:
+		rhot_f = 0.25/100.                                                   # ACI 307-08, Section 4.4.1, the circumferential reinforcement in each face shall be not less than 0.25% of the concrete area.
 
-	while res_min > Pu_tol or sf_f_min < min_sf or rhot_f < 2.5/100:
+	while res_min > Pu_tol or sf_f_min < min_sf:
 		res = []
 		sf = []
 		Mn = []
@@ -351,10 +402,13 @@ def tower(tower_height, section_height, receiver_weight, thickness_bottom, thick
 			alpha = z[0]
 			res.append(neutral_axis_angle(Pu[i], rhot_f, rm_tow[i], t_tow[i], alpha))
 			Mn.append(bending_resistance(rhot_f,rm_tow[i],t_tow[i],alpha))
-			sf.append(bending_resistance(rhot_f,rm_tow[i],t_tow[i],alpha) / (Mx_seismic[i]+Mx_wind[i]))
+			sf.append(bending_resistance(rhot_f,rm_tow[i],t_tow[i],alpha) / (Mu[i]))
 		sf_f_min = np.min(sf)
 		res_min = np.max(res)
-		rhot_f += 0.1/100.                                                   # Reinforcement ratio step (0.1%)
+		if sf_f_min > min_sf and res_min < Pu_tol:
+			pass
+		else:
+			rhot_f += 0.1/100.                                               # Reinforcement ratio step (0.1%)
 
 	# ************************** DESIGN FOR CIRCUMFERENTIAL BENDING ******************************************************************************
 	phi = 0.7                                                                # ACI 307-08 strength reduction factor, section 5
@@ -378,7 +432,7 @@ def tower(tower_height, section_height, receiver_weight, thickness_bottom, thick
 		sf_c_min = np.min(Mu/(Mi_x + Mo_x))                                  # Safety factor for circumferential reinforcement
 
 	# ************************** DESIGN FOR CIRCUMFERENTIAL BENDING ******************************************************************************
-	V_concrete = 1.1*np.sum(v_sec_x)*(1 - rhot_c - rhot_f)/27.               # Cubic feet to cubic yards
+	V_concrete = np.sum(v_sec_x)/27.                                         # Cubic feet to cubic yards
 	M_steel_c = np.sum(v_sec_x)*rhot_c*0.284*12**3/2000.                     # Mass of circumferential reinforcing steel, in short tons
 	M_steel_v = np.sum(v_sec_x)*rhot_f*0.284*12**3/2000.                     # Mass of vertical reinforcing steel, in short tons
 	M_steel = (M_steel_v + M_steel_c)
@@ -396,6 +450,9 @@ def tower(tower_height, section_height, receiver_weight, thickness_bottom, thick
 		C_tower = 1e20                                                       # Cost penalty for optimisation purposes
 	# ************************** PRINTING OUTPUTS ************************************************************************************************
 	if verbose:
+		print '%s---------------------------------------------------'%(fg(11))
+		print '%sType of load:%s                                %s'%(fg(11),fg(13),type_load)
+		print '%s---------------------------------------------------'%(fg(11))
 		print '%sThickness bottom (m):%s                        %s'%(fg(11),fg(13),thickness_bottom)
 		print '%sThickness top (m):%s                           %s'%(fg(11),fg(13),thickness_top)
 		print '%sMinimum vertical reinforcement ratio:%s        %s'%(fg(11),fg(13),rhot_f)
@@ -403,8 +460,16 @@ def tower(tower_height, section_height, receiver_weight, thickness_bottom, thick
 		print '%sPu iteration residual:%s                       %s'%(fg(11),fg(13),res_min)
 		print '%sMinimum vertical safety factor:%s              %4.2f'%(fg(11),fg(13),sf_f_min)
 		print '%sMinimum circumferential safety factor:%s       %4.2f'%(fg(11),fg(13),sf_c_min)
+		print '%s---------------------------------------------------'%(fg(11))
 		print '%sConcrete volume [CY]:%s                        %4.2f'%(fg(11),fg(13),V_concrete)
 		print '%sSteel mass [tons]:%s                           %4.2f'%(fg(11),fg(13),M_steel)
+		print '%s---------------------------------------------------'%(fg(11))
+		print '%sConcrete volume [m3]:%s                        %4.2f'%(fg(11),fg(13),V_concrete*27/(1000./25.4/12)**3)
+		print '%sSteel mass [metric tons]:%s                    %4.2f'%(fg(11),fg(13),M_steel*0.907185)
+		print '%s---------------------------------------------------'%(fg(11))
 		print '%sCost of tower [$]:%s                           %4.2f\n'%(fg(11),fg(13),C_tower)
-
+		if burghartz:
+			print '%sD [kN]  Fv,w [kN] Mw [kN.m]%s'%(fg(11),fg(13))
+			for i in range(n):
+				print '%4.2f  %4.2f  %4.2f'%(px_bar[i]/1000*4.4482*(3.28**2),W[i]*4.4482,Mx_wind[i]*4.4482/3.28)
 	return C_tower,sf_min,res_min
