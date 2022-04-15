@@ -4,6 +4,7 @@ import numpy as np
 from scipy import optimize
 from functools import partial
 from tower_optimisation import *
+from colored import fg
 
 i = 0
 
@@ -25,4 +26,4 @@ b1 = (0.2,0.5)
 b2 = (0.0,0.5)
 bnds = (b1,b2)
 res = optimize.minimize(dbl, x0, method='COBYLA', bounds=bnds, tol=1e-6)
-print '%s,%s,%s'%(res.x[0],res.x[1],res.fun)
+print '%s%s,%s,%s'%(fg(11),res.x[0],res.x[1],res.fun)
