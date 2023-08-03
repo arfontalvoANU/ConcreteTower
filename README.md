@@ -12,18 +12,21 @@ This Python script is used for tower design calculations based on ACI 307-08 gui
 
 1. Clone the repository to your local machine:
 
+<code>
 git clone https://github.com/arfontalvoANU/ConcreteTower.git
-
+<code>
 
 2. Install the required libraries using pip:
 
+<code>
 pip install numpy scipy
-
+<code>
 
 3. Run the `tower_design.py` script:
 
+<code>
 python TowerDesign.py
-
+<code>
 
 ## Usage
 
@@ -43,7 +46,7 @@ The `TowerDesign.py` script provides various methods for tower design calculatio
 
 ## License
 
-This project is licensed under the LGPL-2.1 License - see the [LICENSE.md](LICENSE.md) file for details.
+This project is licensed under the LGPL-2.1 License - see the [LICENSE](LICENSE) file for details.
 
 ## Contributing
 
@@ -55,7 +58,7 @@ This project is licensed under the LGPL-2.1 License - see the [LICENSE.md](LICEN
 
 ## Authors
 
-- Your Name (@arfontalvoANU) - [GitHub Profile](https://github.com/arfontalvoANU)
+- Armando Fontalvo (@arfontalvoANU) - [GitHub Profile](https://github.com/arfontalvoANU)
 
 ## Acknowledgments
 
