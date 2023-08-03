@@ -14,19 +14,19 @@ This Python script is used for tower design calculations based on ACI 307-08 gui
 
 <code>
 git clone https://github.com/arfontalvoANU/ConcreteTower.git
-<code>
+</code>
 
 2. Install the required libraries using pip:
 
 <code>
 pip install numpy scipy
-<code>
+</code>
 
 3. Run the `tower_design.py` script:
 
 <code>
 python TowerDesign.py
-<code>
+</code>
 
 ## Usage
 
