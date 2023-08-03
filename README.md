@@ -2,6 +2,8 @@
 
 This Python script is used for tower design calculations based on ACI 307-08 guidelines. The script includes various methods to determine different design parameters for the tower, such as maximum load, salt density and enthalpy, sodium density and enthalpy, receiver weight, and bending resistance of the tower's concrete shell cross-section.
 
+A detailed description of the design and costing methodology and references can be found at the [Reference Document](https://github.com/arfontalvoANU/ConcreteTower/blob/main/ReferenceDocument.pdf)
+
 ## Requirements
 
 - Python 3.x
